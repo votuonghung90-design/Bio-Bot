@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bio-Bot • Trợ lý AI Sinh học</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  * { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+
+  body {
+    background: radial-gradient(circle at 15% 0%, #d1fae5 0%, transparent 45%),
+                radial-gradient(circle at 100% 30%, #a7f3d0 0%, transparent 40%),
+                #f0fdf4;
+    min-height: 100vh;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #86efac; border-radius: 10px; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg-in { animation: fadeUp 0.28s ease-out; }
+
+  @keyframes bounce-dot {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-5px); opacity: 1; }
+  }
+  .dot { animation: bounce-dot 1s infinite ease-in-out; }
+  .dot:nth-child(2) { animation-delay: 0.15s; }
+  .dot:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .pop-in { animation: popIn 0.25s ease-out; }
+
+  .tab-active {
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: white;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+  }
+
+  .option-btn:disabled { cursor: default; }
+
+  @keyframes leafSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+</style>
+</head>
+<body class="text-emerald-950">
+
+<div class="max-w-2xl mx-auto px-4 py-6 flex flex-col h-screen">
+
+  <!-- Header -->
+  <header class="flex items-center justify-between mb-4 shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-xl shadow-lg shadow-emerald-200">
+        🧬
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-emerald-900 leading-tight">Bio-Bot</h1>
+        <p class="text-xs text-emerald-600">Trợ lý AI Sinh học của bạn</p>
+      </div>
+    </div>
+    <span id="ai-status-pill" class="flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-100 px-3 py-1.5 rounded-full transition-colors">
+      <span class="w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse"></span>
+      <span id="ai-status-text">Đang kết nối...</span>
+    </span>
+  </header>
+
+  <!-- Share button -->
+  <button onclick="openShareModal()" class="mb-4 shrink-0 flex items-center justify-center gap-2 w-full py-2.5 rounded-2xl bg-white border border-emerald-200 text-emerald-700 text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm">
+    🔗 Chia sẻ Bio-Bot / Mã QR
+  </button>
+
+  <!-- Share Modal -->
+  <div id="share-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="if(event.target===this) closeShareModal()">
+    <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl pop-in">
+      <h3 class="text-lg font-bold text-emerald-900 mb-1">Chia sẻ Bio-Bot 🧬</h3>
+      <p class="text-xs text-emerald-500 mb-4">Quét mã QR hoặc chép liên kết bên dưới</p>
+      <div id="qrcode-box" class="flex items-center justify-center mb-4 p-3 bg-emerald-50 rounded-2xl border border-emerald-100 mx-auto w-fit"></div>
+      <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mb-4">
+        <input id="share-link-input" readonly class="flex-1 bg-transparent text-xs text-emerald-800 outline-none truncate" />
+        <button onclick="copyShareLink()" id="copy-btn" class="text-xs font-semibold text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shrink-0">Copy</button>
+      </div>
+      <button onclick="closeShareModal()" class="w-full py-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 text-white text-sm font-semibold">Đóng</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex gap-2 mb-4 bg-white/70 backdrop-blur p-1.5 rounded-2xl shadow-sm border border-emerald-100 shrink-0">
+    <button id="tab-chat-btn" onclick="switchTab('chat')"
+      class="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 tab-active">
+      💬 Trò chuyện
+    </button>
+    <button id="tab-quiz-btn" onclick="switchTab('quiz')"
+      class="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 text-emerald-700">
+      🏆 Thử thách sinh học
+    </button>
+  </div>
+
+  <!-- CHAT VIEW -->
+  <section id="chat-view" class="flex-1 flex flex-col min-h-0 bg-white rounded-3xl shadow-xl shadow-emerald-100 border border-emerald-100 overflow-hidden">
+    <div id="chat-log" class="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-4"></div>
+
+    <div class="border-t border-emerald-100 p-3 bg-emerald-50/50">
+      <div class="flex items-center gap-2">
+        <input id="chat-input" type="text" placeholder="Hỏi về quang hợp, ADN, nguyên phân..."
+          class="flex-1 px-4 py-3 rounded-2xl border border-emerald-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 text-sm placeholder:text-emerald-400" />
+        <button id="send-btn" onclick="handleSend()"
+          class="w-12 h-12 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 text-white flex items-center justify-center shadow-md hover:shadow-lg active:scale-95 transition-all">
+          ➤
+        </button>
+        <button id="stop-btn" onclick="stopGeneration()" style="display:none"
+          class="w-12 h-12 shrink-0 rounded-2xl bg-red-500 text-white flex items-center justify-center shadow-md hover:shadow-lg active:scale-95 transition-all">
+          ■
+        </button>
+      </div>
+      <div class="flex gap-1.5 mt-2 overflow-x-auto scrollbar-thin pb-1">
+        <button onclick="quickAsk('Quang hợp là gì?')" class="text-xs whitespace-nowrap bg-white border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-full hover:bg-emerald-100 transition">Quang hợp là gì?</button>
+        <button onclick="quickAsk('Ti thể có chức năng gì?')" class="text-xs whitespace-nowrap bg-white border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-full hover:bg-emerald-100 transition">Ti thể</button>
+        <button onclick="quickAsk('ADN là gì?')" class="text-xs whitespace-nowrap bg-white border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-full hover:bg-emerald-100 transition">ADN</button>
+        <button onclick="quickAsk('Nguyên phân là gì?')" class="text-xs whitespace-nowrap bg-white border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-full hover:bg-emerald-100 transition">Nguyên phân</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUIZ VIEW -->
+  <section id="quiz-view" class="hidden flex-1 flex-col min-h-0 bg-white rounded-3xl shadow-xl shadow-emerald-100 border border-emerald-100 overflow-hidden">
+
+    <!-- Quiz intro -->
+    <div id="quiz-intro" class="flex-1 flex flex-col items-center justify-center text-center p-8">
+      <div class="text-5xl mb-4">🌿</div>
+      <h2 class="text-xl font-bold text-emerald-900 mb-2">Thử thách sinh học</h2>
+      <p class="text-sm text-emerald-600 mb-6 max-w-xs">Trả lời 3 câu hỏi trắc nghiệm để kiểm tra kiến thức sinh học của bạn nhé!</p>
+      <button onclick="startQuiz()" class="px-6 py-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 text-white font-semibold shadow-md hover:shadow-lg active:scale-95 transition-all">
+        Bắt đầu ngay →
+      </button>
+    </div>
+
+    <!-- Quiz question -->
+    <div id="quiz-question" class="hidden flex-1 flex flex-col p-6">
+      <div class="flex items-center justify-between mb-5">
+        <span id="quiz-progress" class="text-xs font-semibold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">Câu 1/3</span>
+        <span id="quiz-score" class="text-xs font-semibold text-emerald-700">Điểm: 0</span>
+      </div>
+      <h3 id="quiz-prompt" class="text-base font-semibold text-emerald-900 mb-5 leading-relaxed"></h3>
+      <div id="quiz-options" class="space-y-2.5"></div>
+      <p id="quiz-feedback" class="mt-4 text-sm font-medium hidden"></p>
+      <button id="quiz-next-btn" onclick="nextQuestion()" class="hidden mt-auto w-full py-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 text-white font-semibold shadow-md active:scale-95 transition-all">
+        Câu tiếp theo →
+      </button>
+    </div>
+
+    <!-- Quiz result -->
+    <div id="quiz-result" class="hidden flex-1 flex flex-col items-center justify-center text-center p-8">
+      <div id="quiz-result-emoji" class="text-6xl mb-4"></div>
+      <h2 class="text-xl font-bold text-emerald-900 mb-1">Hoàn thành!</h2>
+      <p id="quiz-result-text" class="text-sm text-emerald-600 mb-6"></p>
+      <div class="text-4xl font-extrabold text-emerald-600 mb-6"><span id="quiz-final-score">0</span>/3</div>
+      <button onclick="startQuiz()" class="px-6 py-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 text-white font-semibold shadow-md hover:shadow-lg active:scale-95 transition-all">
+        Làm lại
+      </button>
+    </div>
+  </section>
+
+  <p class="text-center text-[11px] text-emerald-500 mt-3 shrink-0">Bio-Bot ưu tiên dùng AI thật (Claude); nếu không có quyền sẽ tự chuyển sang cơ sở dữ liệu từ khóa có sẵn.</p>
+</div>
+
+<script>
+/* ======================= DỮ LIỆU KIẾN THỨC SINH HỌC ======================= */
+const bioDB = [
+  // Chưa có dữ liệu — hãy dạy Bio-Bot bằng cách bổ sung các mục { keywords: [...], answer: "..." } vào đây.
+];
+
+const fallbackAnswers = [
+  "🌱 Bio-Bot hiện chưa được huấn luyện dữ liệu cho câu hỏi này. Bạn có thể tiếp tục dạy thêm kiến thức mới nhé!",
+  "📚 Mình chưa có thông tin về chủ đề này trong cơ sở dữ liệu. Hãy bổ sung thêm để mình trả lời chính xác hơn trong lần sau!"
+];
+
+/* ======================= CHAT LOGIC ======================= */
+const chatLog = document.getElementById('chat-log');
+
+function addMessage(text, sender) {
+  const wrap = document.createElement('div');
+  wrap.className = `flex items-end gap-2 msg-in ${sender === 'user' ? 'flex-row-reverse' : ''}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = `w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-sm ${
+    sender === 'user' ? 'bg-emerald-600 text-white' : 'bg-gradient-to-br from-emerald-400 to-green-500 text-white'
+  }`;
+  avatar.textContent = sender === 'user' ? '🙂' : '🧬';
+
+  const bubble = document.createElement('div');
+  bubble.className = `max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
+    sender === 'user'
+      ? 'bg-emerald-600 text-white rounded-br-md'
+      : 'bg-emerald-50 text-emerald-900 rounded-bl-md border border-emerald-100'
+  }`;
+  bubble.innerHTML = text;
+
+  wrap.appendChild(avatar);
+  wrap.appendChild(bubble);
+  chatLog.appendChild(wrap);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return bubble;
+}
+
+function showTyping() {
+  const wrap = document.createElement('div');
+  wrap.id = 'typing-indicator';
+  wrap.className = 'flex items-end gap-2 msg-in';
+  wrap.innerHTML = `
+    <div class="w-8 h-8 shrink-0 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 text-white flex items-center justify-center text-sm">🧬</div>
+    <div class="bg-emerald-50 border border-emerald-100 px-4 py-3 rounded-2xl rounded-bl-md flex gap-1.5 items-center">
+      <span class="dot w-2 h-2 rounded-full bg-emerald-400"></span>
+      <span class="dot w-2 h-2 rounded-full bg-emerald-400"></span>
+      <span class="dot w-2 h-2 rounded-full bg-emerald-400"></span>
+    </div>`;
+  chatLog.appendChild(wrap);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+function findAnswer(userText) {
+  const normalized = userText.toLowerCase();
+  for (const entry of bioDB) {
+    if (entry.keywords.some(kw => normalized.includes(kw))) {
+      return entry.answer;
+    }
+  }
+  return fallbackAnswers[Math.floor(Math.random() * fallbackAnswers.length)];
+}
+
+/* ======================= KẾT NỐI AI THẬT (Claude) ======================= */
+let sampleFn = null;      // hàm gọi Claude thật, null nếu không khả dụng
+let aiTurns = [];         // lịch sử hội thoại gửi cho Claude
+let currentController = null;
+
+const AI_RULES = "Bạn là một Siêu mô hình AI chuyên gia sinh học toàn diện (BioModel Core). Mục tiêu tối thượng là làm chủ toàn bộ hệ thống tri thức sinh học từ vi mô đến vĩ mô, giải đáp chính xác tuyệt đối nhưng luôn biến hóa linh hoạt cách diễn đạt, không bao giờ rập khuôn hay lặp lại. " +
+  "TRỤ CỘT 1 - HỌC TOÀN DIỆN 5 TẦNG TỔ CHỨC SINH HỌC: mỗi khi phân tích một vấn đề, tự động chiếu nó vào 5 tầng: " +
+  "(Tầng 1) Sinh học phân tử & tế bào - ADN, ARN, protein, bào quan, chuyển hóa năng lượng, chu kỳ tế bào; " +
+  "(Tầng 2) Di truyền học & tiến hóa - quy luật di truyền, di truyền quần thể, chọn lọc tự nhiên, cây phát sinh chủng loại; " +
+  "(Tầng 3) Vi sinh vật & miễn dịch học - virus, vi khuẩn, kháng nguyên - kháng thể, vaccine, đáp ứng miễn dịch; " +
+  "(Tầng 4) Sinh lý học cơ thể - thực vật (quang hợp, vận chuyển nước) và động vật/người (thần kinh, nội tiết, tuần hoàn, cân bằng nội môi); " +
+  "(Tầng 5) Sinh thái học & môi trường - quần xã, dòng năng lượng, chu trình sinh địa hóa, biến đổi khí hậu. " +
+  "TRỤ CỘT 2 - QUY TRÌNH TƯ DUY (áp dụng âm thầm trước khi trả lời, KHÔNG hiển thị các bước này ra cho người dùng): " +
+  "Bước A Nhận diện ý định - xác định từ khóa cốt lõi và câu hỏi đang nhắm vào khía cạnh nào của sinh học; " +
+  "Bước B Xác định tầng sống - câu hỏi thuộc cấp độ phân tử, cá thể hay quần thể, cơ chế nhân quả liên kết từ dưới lên hay từ trên xuống; " +
+  "Bước C Loại bỏ ngoại suy sai lệch - chỉ bám sát các định luật và cơ chế khoa học thực chứng được công nhận toàn cầu, tuyệt đối không bịa đặt cơ chế sinh học ảo; nếu là giả thuyết chưa chứng minh hoàn toàn thì phải nói rõ. " +
+  "TRỤ CỘT 3 - BIẾN HÓA VĂN PHONG, KHÔNG LẶP LẠI: tuyệt đối không dùng mẫu câu cố định hay lặp lại nguyên văn cách diễn đạt cũ; mỗi lần trả lời đổi lăng kính tiếp cận linh hoạt giữa các góc nhìn: " +
+  "(1) ẩn dụ/mô hình sinh động (ví dụ: ti thể như trạm năng lượng, màng tế bào như cổng kiểm soát biên giới); " +
+  "(2) sơ đồ tư duy logic dạng gạch đầu dòng chuỗi nhân quả (Nguyên nhân → Cơ chế → Kết quả); " +
+  "(3) góc độ tiến hóa hoặc lịch sử khám phá ra cơ chế đó. " +
+  "Dùng thuật ngữ khoa học chuẩn mực, kèm tên tiếng Anh khi cần thiết, nhưng giải thích bằng văn phong lôi cuốn, dễ hiểu, giàu tính hàn lâm nhưng không khô khan. " +
+  "Luôn trả lời bằng tiếng Việt (thuật ngữ có thể kèm tiếng Anh), có thể dùng emoji phù hợp, độ dài linh hoạt theo độ phức tạp của câu hỏi. " +
+  "Nếu câu hỏi không liên quan đến sinh học, hãy khéo léo hướng người dùng quay lại chủ đề sinh học. " +
+  "CƠ CHẾ PHẢN HỒI 'CỐT LÕI TRƯỚC - CHI TIẾT SAU' (PROGRESSIVE DISCLOSURE) - áp dụng cho MỌI câu trả lời: " +
+  "Tầng 1 (luôn làm trước): mở đầu bằng một đoạn ngắn gọn, súc tích, đi thẳng vào bản chất câu hỏi, không dùng thuật ngữ quá phức tạp hay văn rườm rà ở phần này. " +
+  "Tầng 2 (chỉ khi người dùng hỏi tiếp, ví dụ 'giải thích kỹ hơn', 'cơ chế ra sao'): lúc đó mới triển khai đầy đủ hệ thống 5 tầng sinh học, chuỗi nhân quả và phân tích vi mô sâu sắc theo 3 trụ cột ở trên. " +
+  "Kết thúc câu trả lời Tầng 1 bằng một câu hỏi gợi mở nhẹ nhàng, mời người dùng chủ động chọn đi sâu hơn hay không. " +
+  "QUY TẮC TRÌNH BÀY 'SIÊU CÔ ĐỌNG & THỊ GIÁC SẠCH' (MINIMALIST & CLEAN FORMATTING) - áp dụng cho mọi câu trả lời, đặc biệt là Tầng 1: " +
+  "(1) Siêu cô đọng cốt lõi - cắt bỏ hoàn toàn phần dẫn dắt dài dòng, đi thẳng vào định nghĩa/bản chất chỉ trong 1-2 câu đầu tiên; chỉ giữ ý cốt lõi nhất, loại bỏ chi tiết râu ria; nếu người dùng không hỏi sâu thì tuyệt đối không tự ý tuôn ra cơ chế phức tạp. " +
+  "(2) Trình bày sạch, dễ đọc - không viết thành đoạn văn dài đặc quánh; chia nhỏ ý thành dòng đơn, gạch đầu dòng ngắn gọn, có khoảng trắng giữa các phần; in đậm các từ khóa chính để người đọc chỉ cần liếc qua là nắm được ý chính. " +
+  "(3) Mẫu trình bày chuẩn cho Tầng 1: một câu cốt lõi định nghĩa vấn đề, tiếp theo 2-3 gạch đầu dòng siêu ngắn gọn chứa từ khóa chính (in đậm), rồi một câu hỏi mở gợi ý đi sâu hơn ở cuối nếu phù hợp. " +
+  "QUY TẮC ĐỊNH DẠNG CHÍNH XÁC (EXACT LAYOUT & STYLING) - áp dụng bắt buộc cho mọi câu trả lời: " +
+  "(1) Cấu trúc phân cách - dùng đường kẻ ngang '---' để tách rõ giữa các phần nội dung chính (ví dụ giữa phần định nghĩa cốt lõi và phần gợi ý tiếp theo); mỗi đoạn văn chỉ dài tối đa 2-3 dòng, không viết thành khối chữ dày đặc. " +
+  "(2) Điểm nhấn thị giác - dùng in đậm (**...**) cho từ khóa cốt lõi, thuật ngữ sinh học và ý quan trọng nhất; dùng danh sách gạch đầu dòng (*) ngắn gọn để liệt kê đặc điểm hoặc phân loại. " +
+  "(3) Khối trích dẫn - bắt buộc dùng blockquote (dấu '>' đầu dòng) khi đưa ra ví dụ minh họa, hình ảnh ẩn dụ (ví dụ: ví ti thể như nhà máy điện) hoặc câu trả lời cốt lõi nhất. " +
+  "(4) Nhịp điệu và kết thúc - giữ câu trả lời ngắn gọn, đi thẳng vào vấn đề theo cấu trúc 'cốt lõi trước - mở rộng sau'; luôn kết thúc bằng một câu hỏi gợi mở nhẹ nhàng, thân thiện và đầy hứng thú ở cuối bài. " +
+  "NHẮC LẠI BẮT BUỘC (tuân thủ nghiêm ngặt trong TỪNG câu trả lời, không được bỏ qua dù câu trả lời ngắn hay dài): " +
+  "- Mọi hình ảnh ẩn dụ/ví dụ minh họa PHẢI được đặt trong khối trích dẫn bắt đầu bằng dấu '>' . " +
+  "- Mọi từ khóa/thuật ngữ quan trọng PHẢI được in đậm bằng **...** . " +
+  "- PHẢI có ít nhất một đường kẻ ngang '---' để phân tách các phần nội dung khi câu trả lời có từ 2 phần trở lên. " +
+  "Đây là 3 yêu cầu định dạng tối thiểu, không được trả lời nếu thiếu bất kỳ yêu cầu nào trong số này. " +
+  "QUY TẮC ĐA DẠNG HÓA VĂN PHONG, CHỐNG LẶP LẠI (DYNAMIC VARIATION) - áp dụng khi người dùng hỏi lại cùng một câu hỏi hoặc một khái niệm đã giải thích trước đó trong cuộc trò chuyện: " +
+  "TUYỆT ĐỐI KHÔNG lặp lại nguyên văn cấu trúc câu, từ khóa mở đầu hay cách diễn đạt cũ đã dùng trong lượt trả lời trước đó (xem lại lịch sử hội thoại để nhận biết). " +
+  "(1) Giữ vững cốt lõi, thay đổi lăng kính - bản chất khoa học, định nghĩa chuẩn xác và từ khóa cốt lõi phải giữ nguyên 100% để không sai lệch sinh học; nhưng luân phiên đổi 'lối vào' qua các lượt: Lần A dùng ẩn dụ trực quan (so sánh với công nghệ, đời sống hàng ngày); Lần B dùng chuỗi nhân quả logic (từ nguyên nhân sâu xa đến kết quả); Lần C dùng góc nhìn tiến hóa hoặc lịch sử khám phá khoa học. " +
+  "(2) Biến hóa câu từ và cấu trúc - tránh lặp lại mẫu câu quen thuộc (ví dụ không mở đầu mãi bằng '[Khái niệm] là quá trình...'); thay đổi chủ ngữ, động từ, cách ngắt nhịp câu, từ nối và cách liệt kê để tạo cảm giác tươi mới như đang nghe chuyên gia kể chuyện ở những thời điểm khác nhau. " +
+  "(3) Dù đổi lăng kính hay câu từ, vẫn phải tuân thủ nghiêm ngặt quy tắc định dạng đã nêu ở trên: siêu cô đọng, khối trích dẫn '>' cho ẩn dụ, in đậm từ khóa quan trọng, đường kẻ ngang '---' để phân tách.";
+
+function setAiStatus(state) {
+  const pill = document.getElementById('ai-status-pill');
+  const text = document.getElementById('ai-status-text');
+  if (state === 'ai') {
+    pill.className = "flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-full transition-colors";
+    pill.querySelector('span').className = "w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse";
+    text.textContent = "AI thật (Claude)";
+  } else if (state === 'offline') {
+    pill.className = "flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-full transition-colors";
+    pill.querySelector('span').className = "w-2 h-2 rounded-full bg-emerald-400 inline-block";
+    text.textContent = "Chế độ từ khóa";
+  } else if (state === 'thinking') {
+    pill.className = "flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-100 px-3 py-1.5 rounded-full transition-colors";
+    pill.querySelector('span').className = "w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse";
+    text.textContent = "Đang suy nghĩ...";
+  }
+}
+
+async function initAi() {
+  try {
+    if (window.claude && typeof window.claude.use === 'function') {
+      sampleFn = await window.claude.use('sample');
+    }
+  } catch (e) {
+    sampleFn = null;
+  }
+  setAiStatus(sampleFn ? 'ai' : 'offline');
+}
+initAi();
+
+function toggleStopButton(show) {
+  document.getElementById('send-btn').style.display = show ? 'none' : 'flex';
+  document.getElementById('stop-btn').style.display = show ? 'flex' : 'none';
+}
+
+function stopGeneration() {
+  if (currentController) currentController.abort();
+}
+
+function mdToHtml(raw) {
+  let html = raw
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  html = html.replace(/^---$/gm, '<hr class="my-2 border-emerald-200">');
+  html = html.replace(/^&gt;\s?(.*)$/gm, '<div class="border-l-4 border-emerald-300 pl-3 italic text-emerald-700 my-1">$1</div>');
+  html = html.replace(/^\*\s+(.*)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, (m) => '<ul class="list-disc pl-5 my-1 space-y-0.5">' + m.replace(/\n/g, '') + '</ul>');
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
+async function askClaude(text) {
+  aiTurns.push({ role: 'user', content: text });
+  setAiStatus('thinking');
+  toggleStopButton(true);
+  showTyping();
+
+  currentController = new AbortController();
+  let bubbleEl = null;
+  let rawText = '';
+
+  try {
+    const { text: fullText } = await sampleFn(
+      [{ role: 'user', content: AI_RULES }, ...aiTurns],
+      {
+        cache: false,
+        signal: currentController.signal,
+        onText: ({ text: soFar }) => {
+          if (!bubbleEl) {
+            removeTyping();
+            bubbleEl = addMessage('', 'bot');
+          }
+          rawText = soFar;
+          bubbleEl.innerHTML = mdToHtml(soFar);
+          chatLog.scrollTop = chatLog.scrollHeight;
+        }
+      }
+    );
+    if (!bubbleEl) { removeTyping(); bubbleEl = addMessage('', 'bot'); }
+    rawText = fullText;
+    bubbleEl.innerHTML = mdToHtml(fullText);
+    aiTurns.push({ role: 'assistant', content: fullText });
+  } catch (e) {
+    removeTyping();
+    if (e.code === 'cancelled') {
+      if (bubbleEl && rawText) {
+        aiTurns.push({ role: 'assistant', content: rawText });
+      } else {
+        aiTurns.pop();
+      }
+    } else if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(e.code)) {
+      sampleFn = null;
+      setAiStatus('offline');
+      aiTurns.pop();
+      addMessage("⚠️ Không có quyền dùng AI thật, mình chuyển sang chế độ từ khóa nhé.<br><br>" + findAnswer(text), 'bot');
+    } else if (e.code === 'rate_limited') {
+      aiTurns.pop();
+      addMessage("⏳ Bạn thao tác hơi nhanh, chờ một chút rồi hỏi lại nhé!", 'bot');
+    } else if (e.code === 'refused' || e.code === 'empty_completion') {
+      aiTurns.pop();
+      addMessage("🙈 Mình chưa trả lời được câu này, bạn thử diễn đạt lại xem sao nhé!", 'bot');
+    } else {
+      aiTurns.pop();
+      addMessage((e.text || "") + "<br>⚠️ Có lỗi kết nối tới AI, bạn thử lại nhé!", 'bot');
+    }
+  } finally {
+    currentController = null;
+    toggleStopButton(false);
+    if (sampleFn) setAiStatus('ai');
+  }
+}
+
+function handleSend() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  addMessage(text, 'user');
+  input.value = '';
+
+  if (sampleFn) {
+    askClaude(text);
+  } else {
+    showTyping();
+    setTimeout(() => {
+      removeTyping();
+      addMessage(findAnswer(text), 'bot');
+    }, 1000);
+  }
+}
+
+function quickAsk(text) {
+  document.getElementById('chat-input').value = text;
+  handleSend();
+}
+
+document.getElementById('chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') handleSend();
+});
+
+// Tin nhắn chào mừng ban đầu
+addMessage("Xin chào! Mình là <b>Bio-Bot</b> 🧬 — hiện mình vừa được reset và chưa có kiến thức nào trong cơ sở dữ liệu cả. Hãy bắt đầu dạy mình những kiến thức Sinh học mới nhé!", 'bot');
+
+/* ======================= CHIA SẺ / MÃ QR ======================= */
+let qrRendered = false;
+let lastQrLink = '';
+
+function getShareLink() {
+  return window.location.href;
+}
+
+function openShareModal() {
+  const modal = document.getElementById('share-modal');
+  modal.classList.remove('hidden');
+  const link = getShareLink();
+  document.getElementById('share-link-input').value = link;
+
+  if (!qrRendered || lastQrLink !== link) {
+    document.getElementById('qrcode-box').innerHTML = '';
+    try {
+      new QRCode(document.getElementById('qrcode-box'), {
+        text: link,
+        width: 176,
+        height: 176,
+        colorDark: "#047857",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      qrRendered = true;
+      lastQrLink = link;
+    } catch (e) {
+      document.getElementById('qrcode-box').innerHTML = '<p class="text-xs text-emerald-600 p-4">Không tạo được mã QR, hãy dùng liên kết bên dưới.</p>';
+    }
+  }
+}
+
+function closeShareModal() {
+  document.getElementById('share-modal').classList.add('hidden');
+}
+
+function copyShareLink() {
+  const input = document.getElementById('share-link-input');
+  input.select();
+  navigator.clipboard.writeText(getShareLink()).then(() => {
+    const btn = document.getElementById('copy-btn');
+    const old = btn.textContent;
+    btn.textContent = 'Đã chép!';
+    setTimeout(() => { btn.textContent = old; }, 1500);
+  }).catch(() => {
+    document.execCommand('copy');
+  });
+}
+
+/* ======================= TAB SWITCHING ======================= */
+function switchTab(tab) {
+  const chatView = document.getElementById('chat-view');
+  const quizView = document.getElementById('quiz-view');
+  const chatBtn = document.getElementById('tab-chat-btn');
+  const quizBtn = document.getElementById('tab-quiz-btn');
+
+  if (tab === 'chat') {
+    chatView.classList.remove('hidden');
+    chatView.classList.add('flex');
+    quizView.classList.add('hidden');
+    quizView.classList.remove('flex');
+    chatBtn.classList.add('tab-active');
+    chatBtn.classList.remove('text-emerald-700');
+    quizBtn.classList.remove('tab-active');
+    quizBtn.classList.add('text-emerald-700');
+  } else {
+    quizView.classList.remove('hidden');
+    quizView.classList.add('flex');
+    chatView.classList.add('hidden');
+    chatView.classList.remove('flex');
+    quizBtn.classList.add('tab-active');
+    quizBtn.classList.remove('text-emerald-700');
+    chatBtn.classList.remove('tab-active');
+    chatBtn.classList.add('text-emerald-700');
+  }
+}
+
+/* ======================= QUIZ LOGIC ======================= */
+const quizData = [
+  {
+    prompt: "Quang hợp ở thực vật diễn ra chủ yếu tại bào quan nào?",
+    options: ["Ti thể", "Lục lạp", "Nhân tế bào", "Ribosome"],
+    correct: 1,
+    explain: "Lục lạp chứa diệp lục giúp hấp thụ ánh sáng để thực hiện quang hợp."
+  },
+  {
+    prompt: "Phân tử ADN có cấu trúc dạng gì?",
+    options: ["Xoắn đơn", "Hình cầu", "Xoắn kép", "Hình que thẳng"],
+    correct: 2,
+    explain: "ADN có cấu trúc xoắn kép do Watson và Crick phát hiện năm 1953."
+  },
+  {
+    prompt: "Giảm phân từ 1 tế bào mẹ tạo ra bao nhiêu tế bào con?",
+    options: ["1 tế bào", "2 tế bào", "3 tế bào", "4 tế bào"],
+    correct: 3,
+    explain: "Giảm phân gồm 2 lần phân chia liên tiếp, tạo ra 4 tế bào con mang bộ NST n."
+  }
+];
+
+let currentQ = 0;
+let score = 0;
+
+function startQuiz() {
+  currentQ = 0;
+  score = 0;
+  document.getElementById('quiz-intro').classList.add('hidden');
+  document.getElementById('quiz-result').classList.add('hidden');
+  document.getElementById('quiz-result').classList.remove('flex');
+  document.getElementById('quiz-question').classList.remove('hidden');
+  document.getElementById('quiz-question').classList.add('flex');
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = quizData[currentQ];
+  document.getElementById('quiz-progress').textContent = `Câu ${currentQ + 1}/${quizData.length}`;
+  document.getElementById('quiz-score').textContent = `Điểm: ${score}`;
+  document.getElementById('quiz-prompt').textContent = q.prompt;
+
+  const optionsWrap = document.getElementById('quiz-options');
+  optionsWrap.innerHTML = '';
+  q.options.forEach((opt, idx) => {
+    const btn = document.createElement('button');
+    btn.className = "option-btn w-full text-left px-4 py-3 rounded-xl border-2 border-emerald-100 bg-emerald-50/60 hover:bg-emerald-100 hover:border-emerald-300 transition-all text-sm font-medium text-emerald-900";
+    btn.textContent = `${String.fromCharCode(65 + idx)}. ${opt}`;
+    btn.onclick = () => selectAnswer(idx, btn);
+    optionsWrap.appendChild(btn);
+  });
+
+  document.getElementById('quiz-feedback').classList.add('hidden');
+  document.getElementById('quiz-next-btn').classList.add('hidden');
+}
+
+function selectAnswer(idx, btnEl) {
+  const q = quizData[currentQ];
+  const allBtns = document.querySelectorAll('#quiz-options button');
+  allBtns.forEach(b => b.disabled = true);
+
+  const feedback = document.getElementById('quiz-feedback');
+  feedback.classList.remove('hidden');
+
+  if (idx === q.correct) {
+    score++;
+    btnEl.classList.remove('border-emerald-100', 'bg-emerald-50/60');
+    btnEl.classList.add('border-emerald-500', 'bg-emerald-200');
+    feedback.className = "mt-4 text-sm font-medium text-emerald-700";
+    feedback.textContent = `✅ Chính xác! ${q.explain}`;
+  } else {
+    btnEl.classList.remove('border-emerald-100', 'bg-emerald-50/60');
+    btnEl.classList.add('border-red-400', 'bg-red-100');
+    allBtns[q.correct].classList.remove('border-emerald-100', 'bg-emerald-50/60');
+    allBtns[q.correct].classList.add('border-emerald-500', 'bg-emerald-200');
+    feedback.className = "mt-4 text-sm font-medium text-red-600";
+    feedback.textContent = `❌ Chưa đúng. ${q.explain}`;
+  }
+
+  document.getElementById('quiz-score').textContent = `Điểm: ${score}`;
+  document.getElementById('quiz-next-btn').classList.remove('hidden');
+  document.getElementById('quiz-next-btn').textContent = (currentQ === quizData.length - 1) ? "Xem kết quả →" : "Câu tiếp theo →";
+}
+
+function nextQuestion() {
+  currentQ++;
+  if (currentQ >= quizData.length) {
+    showResult();
+  } else {
+    renderQuestion();
+  }
+}
+
+function showResult() {
+  document.getElementById('quiz-question').classList.add('hidden');
+  document.getElementById('quiz-question').classList.remove('flex');
+  const resultView = document.getElementById('quiz-result');
+  resultView.classList.remove('hidden');
+  resultView.classList.add('flex', 'pop-in');
+
+  document.getElementById('quiz-final-score').textContent = score;
+
+  let emoji, text;
+  if (score === 3) { emoji = "🏆"; text = "Xuất sắc! Bạn nắm rất vững kiến thức sinh học."; }
+  else if (score === 2) { emoji = "🌟"; text = "Khá tốt! Ôn thêm một chút là hoàn hảo."; }
+  else if (score === 1) { emoji = "🌱"; text = "Bạn đã bắt đầu rồi, hãy trò chuyện với Bio-Bot để học thêm nhé!"; }
+  else { emoji = "📘"; text = "Đừng nản! Hãy quay lại tab Trò chuyện để tìm hiểu thêm."; }
+
+  document.getElementById('quiz-result-emoji').textContent = emoji;
+  document.getElementById('quiz-result-text').textContent = text;
+}
+</script>
+</body>
+</html>
